@@ -81,6 +81,28 @@ if(navigation && document.startViewTransition){
             handler: async () => {
                 const response = await fetch(event.destination.url);
                 const text = await response.text();
+                
+                // Create a temporary container to parse and preload images
+                const tempContainer = document.createElement('div');
+                tempContainer.innerHTML = text;
+                const images = tempContainer.getElementsByTagName('img');
+                
+                // Preload images before transition
+                const imagePromises = Array.from(images).map(img => {
+                    return new Promise((resolve, reject) => {
+                        const image = new Image();
+                        image.onload = resolve;
+                        image.onerror = resolve; // Continue even if image fails to load
+                        image.src = img.src;
+                    });
+                });
+
+                // Wait for images to load or 1 second timeout
+                await Promise.race([
+                    Promise.all(imagePromises),
+                    new Promise(resolve => setTimeout(resolve, 1000))
+                ]);
+
                 document.startViewTransition(()=>{
                     const body = text.match(/<body[^>]*>([\s\S]*)<\/body>/i)[1];
                     document.body.innerHTML = body;
